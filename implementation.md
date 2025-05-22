@@ -1,10 +1,18 @@
-# Implementation Plan · v2 (Test-Driven)
+# Implementation Plan
+
+## Purpose
+
+Design and prototype a lightweight, locally‑hosted orchestrator that coordinates 3‑5 Sourcegraph Amp coding agents so that they can deliver features faster and with higher code quality than a single diligent agent working alone.
+
+## Problem Statement
+
+A single agent can only work serially: it writes code, runs tests, waits, and repeats. Teams of engineers succeed via parallelism (multiple streams of work) and peer review. We want to replicate those advantages while controlling merge conflicts and ensuring tests remain green.
 
 ## 0 · Bootstrap & Project Skeleton
 
-- [ ] **Step 0-1: Initialise Go module & repo layout**
+- [x] **Step 0-1: Initialise Go module & repo layout**
 
-  - **Task**: create `go.mod`, baseline folders, `.gitignore`, simple `Makefile`.
+  - **Task**: create baseline folders, `.gitignore`, simple `Makefile`.
   - **Why**: establishes consistent imports & build targets.
   - **Files** (4)
     - `go.mod`
