@@ -24,7 +24,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
     1. `go mod tidy && make build` → binary should compile.
     2. `make lint` (will noop until govet added in 0-2).
 
-- [ ] **Step 0-2: Configuration scaffolding**
+- [x] **Step 0-2: Configuration scaffolding**
 
   - **Task**: add `config.sample.yaml`, `internal/config` loader using Viper + validation.
   - **Files** (4)

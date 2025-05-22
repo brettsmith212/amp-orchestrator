@@ -1,0 +1,31 @@
+# Amp Orchestrator Configuration
+
+# Repository Settings
+repository:
+  path: "./repo.git"  # Path to bare git repository
+  workdir: "./tmp"    # Path to working directory for agents
+
+# Agent Settings
+agents:
+  count: 3           # Number of agents to run in parallel
+  timeout: 1800      # Timeout in seconds for agent tasks (30 minutes)
+
+# Scheduler Settings
+scheduler:
+  poll_interval: 5   # Seconds between checking for new tickets
+  backlog_path: "./backlog"  # Directory to watch for new ticket files
+  stale_timeout: 900 # Seconds to wait before considering an agent stale (15 minutes)
+
+# CI Settings
+ci:
+  status_path: "./ci-status"  # Path to store CI status files
+  quick_tests: true   # Run quick tests for fast feedback
+
+# IPC Settings
+ipc:
+  socket_path: "~/.orchestrator.sock"  # Unix socket for client communication
+
+# Metrics Settings
+metrics:
+  enabled: true
+  output_path: "./metrics"  # Directory to store metrics CSV files
