@@ -37,7 +37,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
     1. `cp config.sample.yaml ~/.config/orchestrator/config.yaml`
     2. `go test ./internal/config` → PASS.
 
-- [ ] **Step 0-3: ci.sh & post-receive hook template**
+- [x] **Step 0-3: ci.sh & post-receive hook template**
   - **Task**: copy ci script; Go helper installs hook into bare repo.
   - **Files** (4)
     - `ci.sh` (executable bit)

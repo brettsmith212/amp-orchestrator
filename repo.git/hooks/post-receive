@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Post-receive hook for Amp Orchestrator
+# This hook runs CI tests on received commits
+
+CI_SCRIPT="path/to/ci.sh"
+
+# Create ci-status directory if it doesn't exist
+mkdir -p "$(git rev-parse --git-dir)/ci-status"
+
+# Read each ref update from stdin
+while read oldrev newrev refname; do
+  # Only run CI for branch updates
+  if [[ $refname == refs/heads/* ]]; then
+    branch=$(echo $refname | sed 's|^refs/heads/||')
+    echo "Running CI for $branch..."
+    
+    # Get the repository path
+    repo_dir=$(git rev-parse --git-dir)
+    if [[ "$repo_dir" == ".git" ]]; then
+      # Regular repository
+      repo_dir=$(pwd)
+    elif [[ "$repo_dir" == "." ]]; then
+      # Bare repository
+      repo_dir=$(pwd)
+    else
+      # Full path already
+      repo_dir=$(readlink -f "$repo_dir/..")
+    fi
+    
+    # Run the CI script
+    "$CI_SCRIPT" "$repo_dir" "$branch" "$newrev"
+  fi
+done
