@@ -54,7 +54,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
 
 ## 1 · Scheduler Core (Sprint 1)
 
-- [ ] **Step 1-1: Ticket struct & YAML loader**
+- [x] **Step 1-1: Ticket struct & YAML loader**
 
   - **Files** (3): `internal/ticket/ticket.go`, `..._test.go`, `examples/avatar.yaml`.
   - **Tests**: valid YAML parses; missing field fails with custom error.
@@ -62,14 +62,14 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
     - `go test ./internal/ticket`
     - `orchestrator validate examples/avatar.yaml` (CLI to be added next step) should print ✅.
 
-- [ ] **Step 1-2: Priority queue implementation**
+- [x] **Step 1-2: Priority queue implementation**
 
   - **Files** (3): `internal/queue/queue.go`, `..._test.go`, `internal/queue/heap.go`.
   - **Tests**: push 3 priorities, pop yields expected order.
   - **User Instructions**
     - `go test ./internal/queue`
 
-- [ ] **Step 1-3: Backlog watcher (fsnotify + ticker)**
+- [x] **Step 1-3: Backlog watcher (fsnotify + ticker)**
   - **Files** (4): `internal/watch/watch.go`, `..._test.go`, `cmd/daemon/main.go` (wire), `cmd/cli/main.go` (add `enqueue` & `validate` cmds).
   - **Tests**: temp dir watcher fires event; ticker fallback fires at least once.
   - **Manual Check**

@@ -1,11 +1,13 @@
 .PHONY: build test run lint clean
 
-BINARY_NAME=orchestrator
+DAEMON_BINARY=orchestrator-daemon
+CLI_BINARY=orchestrator
 BIN_DIR=./bin
 
 build:
 	mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/daemon
+	go build -o $(BIN_DIR)/$(DAEMON_BINARY) ./cmd/daemon
+	go build -o $(BIN_DIR)/$(CLI_BINARY) ./cmd/cli
 
 test:
 	go test ./...

@@ -1,0 +1,23 @@
+id: "feat-avatar-123"
+title: "Add user avatar support"
+description: |
+  Implement user avatar upload and display functionality including:
+  - File upload endpoint for avatars
+  - Image resizing and optimization
+  - Avatar display in user profiles
+  - Default avatar fallback system
+  - Support for common image formats (JPEG, PNG, WebP)
+priority: 2
+locks:
+  - "user-profile"
+  - "upload-system"
+  - "image-processing"
+dependencies:
+  - "feat-user-auth-100"
+  - "feat-file-storage-101"
+estimate_min: 180
+tags:
+  - "frontend"
+  - "backend"
+  - "user-experience"
+  - "images"
