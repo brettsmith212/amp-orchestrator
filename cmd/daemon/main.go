@@ -12,6 +12,8 @@ import (
 	"github.com/brettsmith212/amp-orchestrator/internal/config"
 	"github.com/brettsmith212/amp-orchestrator/internal/queue"
 	"github.com/brettsmith212/amp-orchestrator/internal/watch"
+	"github.com/brettsmith212/amp-orchestrator/internal/worker"
+	"github.com/brettsmith212/amp-orchestrator/pkg/gitutils"
 )
 
 func main() {
@@ -34,6 +36,29 @@ func main() {
 	// Create backlog directory if it doesn't exist
 	if err := os.MkdirAll(cfg.Scheduler.BacklogPath, 0755); err != nil {
 		log.Fatalf("Failed to create backlog directory: %v", err)
+	}
+
+	// Create working directory if it doesn't exist
+	if err := os.MkdirAll(cfg.Repository.Workdir, 0755); err != nil {
+		log.Fatalf("Failed to create working directory: %v", err)
+	}
+
+	// Initialize git repository if needed
+	repo := gitutils.NewRepo(cfg.Repository.Path)
+	if _, err := os.Stat(cfg.Repository.Path); os.IsNotExist(err) {
+		log.Printf("Creating bare repository at %s", cfg.Repository.Path)
+		if err := gitutils.InitBareRepo(cfg.Repository.Path); err != nil {
+			log.Fatalf("Failed to create bare repository: %v", err)
+		}
+	}
+
+	// Check if repository has any commits, create initial commit if needed
+	branches, err := repo.ListBranches()
+	if err != nil || len(branches) == 0 {
+		log.Printf("Creating initial commit in repository")
+		if err := repo.CreateInitialCommit(); err != nil {
+			log.Fatalf("Failed to create initial commit: %v", err)
+		}
 	}
 
 	// Initialize priority queue
@@ -67,7 +92,27 @@ func main() {
 		}
 	}()
 
-	// Log periodic queue status
+	// Start workers
+	workers := make([]*worker.Worker, cfg.Agents.Count)
+	for i := 0; i < cfg.Agents.Count; i++ {
+		workerConfig := worker.Config{
+			ID:       i + 1,
+			RepoPath: cfg.Repository.Path,
+			WorkDir:  cfg.Repository.Workdir,
+		}
+		
+		workers[i] = worker.New(workerConfig, ticketQueue)
+		
+		// Start each worker in its own goroutine
+		go func(w *worker.Worker) {
+			log.Printf("Starting worker %d...", w.GetStatus().ID)
+			if err := w.Start(ctx); err != nil {
+				log.Printf("Worker %d stopped: %v", w.GetStatus().ID, err)
+			}
+		}(workers[i])
+	}
+
+	// Log periodic queue and worker status
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
@@ -80,6 +125,17 @@ func main() {
 				log.Printf("Queue status: %d tickets pending", ticketQueue.Len())
 				if ticketQueue.Len() > 0 {
 					log.Printf("Next ticket: %s", ticketQueue.Peek().ID)
+				}
+				
+				// Log worker status
+				for _, w := range workers {
+					status := w.GetStatus()
+					if status.CurrentTicket != nil {
+						log.Printf("Worker %d: processing %s (%s)", 
+							status.ID, status.CurrentTicket.ID, status.CurrentTicket.Title)
+					} else {
+						log.Printf("Worker %d: idle", status.ID)
+					}
 				}
 			}
 		}

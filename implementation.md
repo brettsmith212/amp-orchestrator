@@ -89,7 +89,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
     - `go test ./pkg/gitutils`
     - Inspect `tmp/repo.git/refs/heads/...` count.
 
-- [ ] **Step 2-2: Amp-Worker stub**
+- [x] **Step 2-2: Amp-Worker stub**
   - **Files** (4): `internal/worker/worker.go`, `..._test.go`, `cmd/daemon/main.go` (invoke), `docs/SPRINT1_DEMO.md`.
   - **Tests**: worker creates branch `agent-X/feat-id`; CI script triggered (mock).
   - **Manual Check**

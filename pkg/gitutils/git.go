@@ -77,6 +77,12 @@ func (r *GitRepo) RemoveWorktree(worktreePath string) error {
 // CommitFile adds, commits, and pushes a file to the repository
 // Returns the commit hash
 func (r *GitRepo) CommitFile(worktreePath, filePath, commitMessage string) (string, error) {
+	// Get absolute path to repository before changing directories
+	absRepoPath, err := filepath.Abs(r.Path)
+	if err != nil {
+		return "", internal.NewGitError("abs-path", r.Path, err)
+	}
+
 	// Change to worktree directory for git operations
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -132,10 +138,10 @@ func (r *GitRepo) CommitFile(worktreePath, filePath, commitMessage string) (stri
 	currentBranch := strings.TrimSpace(string(branchOutput))
 	
 	// Configure the remote to point to the bare repository
-	remoteCmd := exec.Command("git", "remote", "add", "origin", r.Path)
+	remoteCmd := exec.Command("git", "remote", "add", "origin", absRepoPath)
 	if _, err := remoteCmd.CombinedOutput(); err != nil {
 		// Remote might already exist, try to set the URL instead
-		remoteCmd = exec.Command("git", "remote", "set-url", "origin", r.Path)
+		remoteCmd = exec.Command("git", "remote", "set-url", "origin", absRepoPath)
 		if output, err := remoteCmd.CombinedOutput(); err != nil {
 			return "", internal.NewGitError("remote", worktreePath, 
 				fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output))))
