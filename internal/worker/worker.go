@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/brettsmith212/amp-orchestrator/internal/ci"
 	"github.com/brettsmith212/amp-orchestrator/internal/queue"
 	"github.com/brettsmith212/amp-orchestrator/internal/ticket"
 	"github.com/brettsmith212/amp-orchestrator/pkg/gitutils"
@@ -15,31 +16,38 @@ import (
 
 // Worker represents an Amp coding agent worker
 type Worker struct {
-	ID          int
-	repo        *gitutils.GitRepo
-	workDir     string
-	queue       *queue.Queue
-	isRunning   bool
-	currentTask *ticket.Ticket
-	worktreePath string
+	ID             int
+	repo           *gitutils.GitRepo
+	workDir        string
+	queue          *queue.Queue
+	isRunning      bool
+	currentTask    *ticket.Ticket
+	worktreePath   string
+	ciStatusReader *ci.StatusReader
+	skipCI         bool
 }
 
 // Config holds worker configuration
 type Config struct {
-	ID       int
-	RepoPath string
-	WorkDir  string
+	ID            int
+	RepoPath      string
+	WorkDir       string
+	CIStatusDir   string
+	SkipCI        bool  // For testing - skips CI wait
 }
 
 // New creates a new worker instance
 func New(config Config, q *queue.Queue) *Worker {
 	repo := gitutils.NewRepo(config.RepoPath)
+	ciStatusReader := ci.NewStatusReader(config.CIStatusDir)
 	
 	return &Worker{
-		ID:      config.ID,
-		repo:    repo,
-		workDir: config.WorkDir,
-		queue:   q,
+		ID:             config.ID,
+		repo:           repo,
+		workDir:        config.WorkDir,
+		queue:          q,
+		ciStatusReader: ciStatusReader,
+		skipCI:         config.SkipCI,
 	}
 }
 
@@ -113,11 +121,24 @@ func (w *Worker) processTicket(t *ticket.Ticket) {
 		return
 	}
 	
-	// Trigger CI check (mock for now)
-	if err := w.triggerCI(branchName); err != nil {
-		log.Printf("Worker %d failed to trigger CI for %s: %v", w.ID, t.ID, err)
+	// Wait for CI to complete and check results (unless skipped for testing)
+	if !w.skipCI {
+	 commitHash, err := w.repo.GetBranchCommit(branchName)
+	if err != nil {
+	 log.Printf("Worker %d failed to get commit hash for %s: %v", w.ID, t.ID, err)
+	 w.cleanup()
+	  return
+		}
+
+	if err := w.waitForCI(commitHash, branchName); err != nil {
+	 log.Printf("Worker %d CI failed for %s: %v", w.ID, t.ID, err)
+	 w.cleanup()
+	  return
+		}
+	} else {
+		log.Printf("Worker %d: CI skipped for testing", w.ID)
 	}
-	
+
 	log.Printf("Worker %d completed ticket %s", w.ID, t.ID)
 	
 	// Mark task as complete
@@ -167,20 +188,46 @@ func (w *Worker) simulateWork(t *ticket.Ticket) error {
 	return nil
 }
 
-// triggerCI simulates triggering the CI system
-func (w *Worker) triggerCI(branchName string) error {
-	log.Printf("Worker %d triggering CI for branch %s", w.ID, branchName)
+// waitForCI waits for CI to complete and checks the result
+func (w *Worker) waitForCI(commitHash, branchName string) error {
+	log.Printf("Worker %d waiting for CI to complete for branch %s (commit %s)", w.ID, branchName, commitHash[:8])
 	
-	// For now, this is just a mock implementation
-	// In a real system, this would trigger the actual CI pipeline
+	// Use shorter timeout for testing
+	maxWaitTime := 10 * time.Second
+	pollInterval := 500 * time.Millisecond
+	timeout := time.After(maxWaitTime)
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 	
-	// Simulate CI processing time
-	time.Sleep(100 * time.Millisecond)
-	
-	// Mock CI status (always pass for now)
-	log.Printf("Worker %d: CI triggered successfully for %s", w.ID, branchName)
-	
-	return nil
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout waiting for CI results after %v", maxWaitTime)
+			
+		case <-ticker.C:
+			// Check if CI status exists
+			if w.ciStatusReader.HasStatus(commitHash) {
+				// Check if CI passed
+				passing, err := w.ciStatusReader.IsPassing(commitHash)
+				if err != nil {
+					return fmt.Errorf("failed to check CI status: %w", err)
+				}
+				
+				if passing {
+					log.Printf("Worker %d: CI passed for %s", w.ID, branchName)
+					return nil
+				} else {
+					// Get detailed status for logging
+					status, err := w.ciStatusReader.GetStatus(commitHash)
+					if err != nil {
+						return fmt.Errorf("CI failed and unable to get details: %w", err)
+					}
+					return fmt.Errorf("CI failed for %s: %s", branchName, status.Output)
+				}
+			}
+			// CI status not ready yet, continue polling
+		}
+	}
 }
 
 // cleanup cleans up worker resources

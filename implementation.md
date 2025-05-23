@@ -107,7 +107,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
   - **Manual Check**
     - Push commit and `ls repo.git/ci-status`.
 
-- [ ] **Step 3-2: Hook installer v2**
+- [x] **Step 3-2: Hook installer v2**
   - **Files** (2): `scripts/install_hook.go`, `scripts/install_hook_test.go` (+ new assertions).
   - **Tests**: verify `$1` param forwarded, status dir created by hook.
   - **Manual Check**

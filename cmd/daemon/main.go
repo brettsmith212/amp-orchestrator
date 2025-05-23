@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -61,6 +63,13 @@ func main() {
 		}
 	}
 
+	// Install git hooks for CI integration
+	if err := installGitHooks(cfg.Repository.Path); err != nil {
+		log.Printf("Warning: Failed to install git hooks: %v", err)
+	} else {
+		log.Printf("Installed git hooks for CI integration")
+	}
+
 	// Initialize priority queue
 	ticketQueue := queue.New()
 	log.Printf("Initialized ticket queue")
@@ -96,9 +105,10 @@ func main() {
 	workers := make([]*worker.Worker, cfg.Agents.Count)
 	for i := 0; i < cfg.Agents.Count; i++ {
 		workerConfig := worker.Config{
-			ID:       i + 1,
-			RepoPath: cfg.Repository.Path,
-			WorkDir:  cfg.Repository.Workdir,
+			ID:          i + 1,
+			RepoPath:    cfg.Repository.Path,
+			WorkDir:     cfg.Repository.Workdir,
+			CIStatusDir: cfg.CI.StatusPath,
 		}
 		
 		workers[i] = worker.New(workerConfig, ticketQueue)
@@ -153,4 +163,36 @@ func main() {
 	// Give components time to shut down gracefully
 	time.Sleep(1 * time.Second)
 	log.Printf("Orchestrator stopped")
+}
+
+// installGitHooks installs the post-receive hook for CI integration
+func installGitHooks(repoPath string) error {
+	// Find the ci.sh script path (relative to the daemon executable)
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to determine executable path: %w", err)
+	}
+	
+	// Assume ci.sh is in the project root (parent of bin/)
+	projectRoot := filepath.Dir(filepath.Dir(execPath))
+	ciScriptPath := filepath.Join(projectRoot, "ci.sh")
+	
+	// Check if ci.sh exists, if not use the current directory
+	if _, err := os.Stat(ciScriptPath); os.IsNotExist(err) {
+		// Fall back to current working directory
+		ciScriptPath = "ci.sh"
+	}
+	
+	// Run the hook installer
+	cmd := exec.Command("go", "run", 
+		filepath.Join(projectRoot, "scripts", "install_hook.go"),
+		"--repo", repoPath,
+		"--ci-script", ciScriptPath)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("hook installation failed: %w: %s", err, output)
+	}
+	
+	return nil
 }

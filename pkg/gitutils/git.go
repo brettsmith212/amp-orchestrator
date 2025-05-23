@@ -310,3 +310,15 @@ func (r *GitRepo) CreateInitialCommit() error {
 
 	return nil
 }
+
+// GetBranchCommit returns the latest commit hash for a given branch
+func (r *GitRepo) GetBranchCommit(branchName string) (string, error) {
+	cmd := exec.Command("git", "--git-dir", r.Path, "rev-parse", branchName)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", internal.NewGitError("rev-parse", r.Path, err)
+	}
+	
+	commitHash := strings.TrimSpace(string(output))
+	return commitHash, nil
+}

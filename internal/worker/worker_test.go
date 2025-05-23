@@ -2,6 +2,8 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,25 @@ import (
 	"github.com/brettsmith212/amp-orchestrator/internal/ticket"
 	"github.com/brettsmith212/amp-orchestrator/pkg/gitutils"
 )
+
+// createMockCIStatus creates a mock CI status file for testing
+func createMockCIStatus(statusDir, commitHash, ref, status string) error {
+	statusFile := filepath.Join(statusDir, commitHash+".json")
+	statusContent := map[string]interface{}{
+		"ref":       ref,
+		"commit":    commitHash,
+		"status":    status,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"output":    "Mock test output",
+	}
+	
+	data, err := json.Marshal(statusContent)
+	if err != nil {
+		return err
+	}
+	
+	return os.WriteFile(statusFile, data, 0644)
+}
 
 func TestWorkerCreatesBranch(t *testing.T) {
 	// Create test environment
@@ -41,16 +62,24 @@ func TestWorkerCreatesBranch(t *testing.T) {
 	}
 	q.Push(testTicket)
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+	
 	// Create worker
 	config := Config{
-		ID:       1,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          1,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      true, // Skip CI for testing
 	}
 	worker := New(config, q)
 	
 	// Start worker in background
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	
 	done := make(chan error, 1)
@@ -58,8 +87,27 @@ func TestWorkerCreatesBranch(t *testing.T) {
 		done <- worker.Start(ctx)
 	}()
 	
+	// Wait a moment for worker to start processing
+	time.Sleep(2 * time.Second)
+	
+	// Create CI status file for the expected commit
+	// First, check if branch was created
+	branchList, err := repo.ListBranches()
+	if err == nil {
+		for _, branch := range branchList {
+			if strings.Contains(branch, "agent-1/feat-123") {
+				commitHash, err := repo.GetBranchCommit(branch)
+				if err == nil {
+					// Create passing CI status
+					createMockCIStatus(ciStatusDir, commitHash, "refs/heads/"+branch, "PASS")
+				}
+				break
+			}
+		}
+	}
+	
 	// Wait for worker to process the ticket
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 	
 	// Cancel context to stop worker
 	cancel()
@@ -132,11 +180,19 @@ func TestWorkerProcessesMultipleTickets(t *testing.T) {
 		q.Push(ticket)
 	}
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+	
 	// Create worker
 	config := Config{
-		ID:       2,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          2,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      true, // Skip CI for testing
 	}
 	worker := New(config, q)
 	
@@ -150,7 +206,7 @@ func TestWorkerProcessesMultipleTickets(t *testing.T) {
 	}()
 	
 	// Wait for worker to process both tickets
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	
 	// Cancel context to stop worker
 	cancel()
@@ -197,12 +253,20 @@ func TestWorkerStatus(t *testing.T) {
 		t.Fatalf("Failed to create initial commit: %v", err)
 	}
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+	
 	// Create empty queue and worker
 	q := queue.New()
 	config := Config{
-		ID:       3,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          3,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      true, // Skip CI for testing
 	}
 	worker := New(config, q)
 	
@@ -269,11 +333,19 @@ func TestWorkerCITrigger(t *testing.T) {
 	}
 	q.Push(testTicket)
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+
 	// Create worker
 	config := Config{
-		ID:       4,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          4,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      false, // Test real CI triggering
 	}
 	worker := New(config, q)
 	
@@ -286,8 +358,26 @@ func TestWorkerCITrigger(t *testing.T) {
 		done <- worker.Start(ctx)
 	}()
 	
-	// Wait for processing
-	time.Sleep(5 * time.Second)
+	// Wait a moment for worker to start processing and create branch
+	time.Sleep(2 * time.Second)
+	
+	// Create CI status file for the expected commit
+	branchList, err := repo.ListBranches()
+	if err == nil {
+		for _, branch := range branchList {
+			if strings.Contains(branch, "agent-4/feat-ci-test") {
+				commitHash, err := repo.GetBranchCommit(branch)
+				if err == nil {
+					// Create passing CI status
+					createMockCIStatus(ciStatusDir, commitHash, "refs/heads/"+branch, "PASS")
+				}
+				break
+			}
+		}
+	}
+	
+	// Wait for processing to complete
+	time.Sleep(2 * time.Second)
 	
 	// Cancel and wait for completion
 	cancel()
@@ -331,11 +421,19 @@ func TestWorkerWithEmptyQueue(t *testing.T) {
 	// Create empty queue
 	q := queue.New()
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+
 	// Create worker
 	config := Config{
-		ID:       5,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          5,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      true, // Skip CI for testing
 	}
 	worker := New(config, q)
 	
@@ -400,11 +498,19 @@ func TestBranchNaming(t *testing.T) {
 	}
 	q.Push(testTicket)
 	
+	// Create CI status directory
+	ciStatusDir := filepath.Join(tmpDir, "ci-status")
+	if err := os.MkdirAll(ciStatusDir, 0755); err != nil {
+		t.Fatalf("Failed to create CI status directory: %v", err)
+	}
+
 	// Create worker with specific ID
 	config := Config{
-		ID:       42,
-		RepoPath: repoPath,
-		WorkDir:  filepath.Join(tmpDir, "work"),
+		ID:          42,
+		RepoPath:    repoPath,
+		WorkDir:     filepath.Join(tmpDir, "work"),
+		CIStatusDir: ciStatusDir,
+		SkipCI:      true, // Skip CI for testing
 	}
 	worker := New(config, q)
 	

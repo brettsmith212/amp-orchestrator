@@ -38,7 +38,7 @@ while read oldrev newrev refname; do
     fi
     
     # Run the CI script
-    "$CI_SCRIPT" "$repo_dir" "$branch" "$newrev"
+    "$CI_SCRIPT" "$repo_dir" "$refname" "$newrev"
   fi
 done
 `
