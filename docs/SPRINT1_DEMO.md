@@ -35,8 +35,9 @@ git init --bare repo.git
 ### 3. Ensure Directories Exist
 
 ```bash
-# Create required directories
+# Create required directories  
 mkdir -p backlog tmp ci-status metrics
+# Note: A 'backlog/processed/' directory will be created automatically
 ```
 
 ## Demo Flow
@@ -112,6 +113,7 @@ Back in terminal 1 (daemon), you should see:
 File event: CREATE backlog/avatar.yaml
 Processing ticket file: backlog/avatar.yaml
 Enqueued ticket feat-avatar-123: Add user avatar support
+Moved processed ticket file to backlog/processed/avatar.yaml
 Worker 2 picked up ticket: feat-avatar-123
 Worker 2 processing ticket feat-avatar-123: Add user avatar support
 Worker 2 created worktree at tmp/agent-2/feat-avatar-123 for branch agent-2/feat-avatar-123
@@ -121,7 +123,7 @@ Worker 2: CI triggered successfully for agent-2/feat-avatar-123
 Worker 2 completed ticket feat-avatar-123
 ```
 
-Note: The worker number may vary (1, 2, or 3) depending on which worker picks up the ticket first.
+**Important**: Notice that the ticket file is moved to `backlog/processed/` immediately after enqueueing to prevent duplicate processing. Only **one worker** picks up each ticket.
 
 ### Step 5: Verify Branch Creation
 
@@ -142,19 +144,61 @@ The exact worker number (agent-1, agent-2, or agent-3) will depend on which work
 
 ### Step 6: Inspect the Work
 
-Check what the worker created:
+To see what the agent actually created, you need to check out the code:
 
 ```bash
-# Check the committed files via git (replace agent-X with the actual worker number)
-git --git-dir repo.git log --oneline agent-2/feat-avatar-123
-git --git-dir repo.git show agent-2/feat-avatar-123 --name-only
+# Clone the repository to get a working copy
+git clone repo.git project
+cd project
 
-# Example output:
-# a4ee466 Implement Add user avatar support
-# 4c0774a Initial commit
-#
-# feature-feat-avatar-123.md
+# Check out the agent's branch to see their work
+git checkout agent-1/feat-avatar-123
+
+# See what files the agent created
+ls -la
+# Output: README.md, feature-feat-avatar-123.md
+
+# Look at the actual code the agent wrote
+cat feature-feat-avatar-123.md
+
+# See the changes compared to main branch
+git diff main
+
+# View the commit history
+git log --oneline
 ```
+
+**Key insight**: The `repo.git` is a bare repository (just git metadata). To see actual code changes, you need to clone it into a working directory (`project/`) and checkout the agent's branch.
+
+## Understanding the Architecture
+
+Here's how the different pieces fit together:
+
+```
+repo.git/          # Bare repository (git metadata only)
+├── refs/heads/    # Branch references
+│   ├── main
+│   ├── agent-1/feat-avatar-123
+│   └── agent-2/feat-other-feature
+└── objects/       # Git objects (commits, trees, blobs)
+
+tmp/               # Temporary worktrees (cleaned up after use)
+├── agent-1/       # Worker 1's workspace
+│   └── feat-xyz/  # Currently processing ticket
+└── agent-2/       # Worker 2's workspace
+
+project/           # Working copy (created by 'git clone repo.git project')
+├── .git/          # Local git metadata
+├── README.md      # Files from current branch
+└── feature-*.md   # Agent-created files (when on agent branch)
+```
+
+**Workflow**:
+1. Agent creates worktree in `tmp/agent-X/ticket-id/`
+2. Agent writes code and commits to branch `agent-X/ticket-id`
+3. Branch is pushed to `repo.git`
+4. Worktree is cleaned up from `tmp/`
+5. To see changes: clone `repo.git` → `project/` and checkout agent branch
 
 ## Advanced Demo Features
 
@@ -163,15 +207,19 @@ git --git-dir repo.git show agent-2/feat-avatar-123 --name-only
 Create additional tickets and enqueue them to see multiple workers in action:
 
 ```bash
-# Create a second ticket
-cat > backlog/test-ticket.yaml << 'EOF'
+# Create a second ticket file
+cat > test-ticket-2.yaml << 'EOF'
 id: "feat-test-456"
 title: "Test feature"
 description: "A simple test feature"
 priority: 1
 EOF
 
+# Enqueue it using the CLI
+./bin/orchestrator enqueue test-ticket-2.yaml
+
 # Watch the daemon logs to see which worker picks it up
+# Each ticket will be processed by exactly ONE worker
 ```
 
 ### Priority Handling
@@ -216,7 +264,8 @@ To stop the demo:
 1. Press `Ctrl+C` in terminal 1 to stop the daemon
 2. Clean up temporary files:
    ```bash
-   rm -rf tmp/* backlog/*.yaml ci-status/* metrics/*
+   rm -rf tmp/* backlog/processed/* ci-status/* metrics/*
+   # Note: processed tickets are in backlog/processed/, not backlog/
    ```
 
 ## Troubleshooting
@@ -240,6 +289,8 @@ To stop the demo:
    ```
 
 4. **Branches not appearing**: If you don't see expected branches, check the daemon logs for error messages. The most common issue is git configuration problems.
+
+5. **Multiple workers processing same ticket**: This was a bug in earlier versions. Current version moves processed tickets to `backlog/processed/` to prevent duplicate processing. Each ticket should only be processed by one worker.
 
 ## What's Demonstrated
 

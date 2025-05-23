@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -143,6 +144,11 @@ func (w *Watcher) processTicketFile(filepath string) {
 
 	w.queue.Push(ticket)
 	log.Printf("Enqueued ticket %s: %s", ticket.ID, ticket.Title)
+
+	// Move the file to a processed directory to avoid re-processing
+	if err := w.moveToProcessed(filepath); err != nil {
+		log.Printf("Failed to move processed file %s: %v", filepath, err)
+	}
 }
 
 // isTicketInQueue checks if a ticket with the given ID is already in the queue
@@ -170,4 +176,25 @@ func (w *Watcher) Stop() error {
 // GetQueueStatus returns information about the current queue state
 func (w *Watcher) GetQueueStatus() string {
 	return w.queue.String()
+}
+
+// moveToProcessed moves a processed ticket file to a processed subdirectory
+func (w *Watcher) moveToProcessed(filePath string) error {
+	// Create processed directory if it doesn't exist
+	processedDir := filepath.Join(w.backlogPath, "processed")
+	if err := os.MkdirAll(processedDir, 0755); err != nil {
+		return fmt.Errorf("failed to create processed directory: %w", err)
+	}
+
+	// Get the filename
+	filename := filepath.Base(filePath)
+	
+	// Move file to processed directory
+	destPath := filepath.Join(processedDir, filename)
+	if err := os.Rename(filePath, destPath); err != nil {
+		return fmt.Errorf("failed to move file to processed directory: %w", err)
+	}
+
+	log.Printf("Moved processed ticket file to %s", destPath)
+	return nil
 }
