@@ -146,19 +146,31 @@ func enqueueTicket(filePath string) {
 }
 
 func initProject(projectName string) {
-	// Check if already initialized
-	if isInitialized() {
-		fmt.Fprintf(os.Stderr, "❌ Project already initialized (found config.yaml)\n")
-		fmt.Fprintf(os.Stderr, "   Use --force to reinitialize (not implemented yet)\n")
-		os.Exit(1)
-	}
-
 	// Get project name if not provided
 	if projectName == "" {
-		projectName = getProjectName()
+		projectName = getProjectNameInteractive()
 	}
 
 	fmt.Printf("🚀 Initializing Amp Orchestrator project: %s\n\n", projectName)
+
+	// Create project directory if it doesn't exist
+	if err := os.MkdirAll(projectName, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to create project directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Change into the project directory
+	if err := os.Chdir(projectName); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to enter project directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Check if already initialized
+	if isInitialized() {
+		fmt.Fprintf(os.Stderr, "❌ Project directory already initialized (found config.yaml)\n")
+		fmt.Fprintf(os.Stderr, "   Use --force to reinitialize (not implemented yet)\n")
+		os.Exit(1)
+	}
 
 	// Check prerequisites
 	fmt.Println("📋 Checking prerequisites...")
@@ -186,7 +198,7 @@ func initProject(projectName string) {
 
 	// Final instructions
 	fmt.Printf("\n✅ Project initialized successfully!\n\n")
-	printNextSteps()
+	printNextSteps(projectName)
 }
 
 func isInitialized() bool {
@@ -194,7 +206,7 @@ func isInitialized() bool {
 	return err == nil
 }
 
-func getProjectName() string {
+func getProjectNameInteractive() string {
 	// Try to get from current directory name
 	cwd, err := os.Getwd()
 	if err == nil {
@@ -490,12 +502,14 @@ tags:
 	fmt.Println("   ✅ Created sample-ticket.yaml")
 }
 
-func printNextSteps() {
+func printNextSteps(projectName string) {
 	fmt.Println("🎯 Next steps:")
-	fmt.Println("   1. Start the daemon:    ./bin/orchestrator-daemon")
-	fmt.Println("   2. Validate the sample: ./bin/orchestrator validate sample-ticket.yaml")
-	fmt.Println("   3. Enqueue the sample:  ./bin/orchestrator enqueue sample-ticket.yaml")
-	fmt.Println("   4. Watch the magic! ✨")
+	fmt.Printf("   1. Enter the directory:  cd %s\n", projectName)
+	fmt.Println("   2. Copy orchestrator binaries to the project directory")
+	fmt.Println("   3. Start the daemon:     ./orchestrator-daemon")
+	fmt.Println("   4. Validate the sample:  ./orchestrator validate sample-ticket.yaml")
+	fmt.Println("   5. Enqueue the sample:   ./orchestrator enqueue sample-ticket.yaml")
+	fmt.Println("   6. Watch the magic! ✨")
 	fmt.Println("")
 	fmt.Println("📚 Learn more:")
 	fmt.Println("   • Read docs/DEMO.md for detailed walkthrough")

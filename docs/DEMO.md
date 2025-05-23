@@ -31,6 +31,7 @@ This creates two binaries:
 ```
 
 This single command will:
+- ✅ **Create the project directory** and set everything up inside it
 - ✅ Check all prerequisites (Git, Go, jq, Amp CLI)
 - ✅ Create all required directories (backlog, tmp, ci-status, metrics, scripts)
 - ✅ Initialize bare git repository with initial commit
@@ -38,6 +39,8 @@ This single command will:
 - ✅ Set up CI scripts
 - ✅ Create a sample ticket to get you started
 - ✅ Show you exactly what to do next
+
+**Just like `create-react-app` or `cargo new` - creates the directory for you!**
 
 **Manual way (if you prefer):**
 
@@ -59,6 +62,18 @@ cp ci.sh ./
 ## Demo Flow
 
 ### Step 1: Start the Daemon
+
+**If you used `init` command:**
+
+In terminal 1, enter your project directory and start the daemon:
+
+```bash
+cd my-project-name
+cp ../bin/* .  # Copy the orchestrator binaries
+./orchestrator-daemon
+```
+
+**If you set up manually:**
 
 In terminal 1, start the orchestrator daemon:
 
@@ -93,10 +108,10 @@ Started backlog watcher on ./backlog
 In terminal 2, validate a ticket (use the generated sample or examples/avatar.yaml):
 
 ```bash
-# If you used init command:
-./bin/orchestrator validate sample-ticket.yaml
+# If you used init command (inside your project directory):
+./orchestrator validate sample-ticket.yaml
 
-# Or use the example ticket:
+# If you set up manually:
 ./bin/orchestrator validate examples/avatar.yaml
 ```
 
@@ -114,10 +129,10 @@ Expected output:
 Enqueue the ticket for processing:
 
 ```bash
-# If you used init command:
-./bin/orchestrator enqueue sample-ticket.yaml
+# If you used init command (inside your project directory):
+./orchestrator enqueue sample-ticket.yaml
 
-# Or use the example ticket:
+# If you set up manually:
 ./bin/orchestrator enqueue examples/avatar.yaml
 ```
 
