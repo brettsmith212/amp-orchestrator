@@ -19,15 +19,20 @@ go test ./pkg/gitutils -run TestAddWorktree  # Run specific test
 
 ### Demo & Manual Testing
 ```bash
-# Sprint 1 Demo Process
-cp config.sample.yaml config.yaml
+# Full Demo Process with AI Integration
 make build
-./bin/orchestrator-daemon &                    # Start daemon
-./bin/orchestrator validate examples/avatar.yaml  # Validate ticket
-./bin/orchestrator enqueue examples/avatar.yaml   # Enqueue ticket
-git --git-dir repo.git branch -a                  # See agent branches
-git clone repo.git project && cd project          # Clone to see code
-git checkout agent-X/feat-ticket-id               # See agent's work
+./bin/orchestrator init my-project              # Initialize new project
+cd my-project
+./bin/orchestrator-daemon &                     # Start daemon
+./bin/orchestrator enqueue examples/hello-world.yaml  # Enqueue ticket
+git --git-dir repo.git branch -a                # See agent branches
+git clone repo.git project && cd project        # Clone to see code
+git checkout agent-X/feat-ticket-id             # See AI-generated code
+
+# Legacy process (manual setup)
+cp config.sample.yaml config.yaml
+./bin/orchestrator validate examples/avatar.yaml
+./bin/orchestrator enqueue examples/avatar.yaml
 ```
 
 ## Project Architecture
@@ -101,6 +106,7 @@ ci.sh              # CI execution script
 - Mock external dependencies where appropriate
 - Test both success and error paths
 - Use `SkipCI: true` flag in worker tests to avoid CI timeouts
+- Use `SkipAmp: true` flag in worker tests to avoid hanging on amp CLI calls
 
 ### CI Integration
 - **Direct CI triggering**: Workers call `ci.sh` directly (more reliable than git hooks)
@@ -120,7 +126,7 @@ ci.sh              # CI execution script
 ### Worker Behavior
 - Workers poll queue every 2 seconds
 - Only one worker processes each ticket
-- Work simulation creates feature documentation files
+- **Real AI Integration**: Workers use Amp CLI to generate actual functional applications
 - **Real CI integration**: Workers trigger `ci.sh` directly after pushing code
 - Workers wait for CI results (30s timeout, 1s polling) before proceeding
 - Automatic cleanup of worktrees after completion
@@ -158,12 +164,18 @@ git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 ```
 
+### Prerequisites
+- **Amp CLI**: Required for AI code generation (`amp --help` should work)
+- **API Key**: Amp CLI must be configured with valid API credentials
+
 ## Next Sprint Preparations
 
 ### Sprint 1 Complete ✅
 - ✅ **Real CI integration** (completed - replaces mock)
 - ✅ **Git utility enhancements** (GetBranchCommit, hook installation)
 - ✅ **Worker CI integration** (direct CI triggering and status monitoring)
+- ✅ **Real AI Integration** (completed - workers use Amp CLI for actual code generation)
+- ✅ **Init Command** (completed - automatic project setup with `orchestrator init`)
 
 ### Sprint 2 Goals (Updated)
 - TUI interface for real-time monitoring
@@ -171,7 +183,6 @@ git config --global user.email "your.email@example.com"
 - Performance optimizations for larger codebases
 
 ### Technical Debt
-- Worker simulation should create actual code files (not just markdown)
 - Lock mechanism for file conflicts (planned for later sprints)
 - Hook triggering reliability (currently using direct CI calls as workaround)
 
