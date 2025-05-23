@@ -59,6 +59,7 @@ Repository path: ./repo.git
 Running with 3 agents
 Backlog path: ./backlog
 Creating initial commit in repository
+Installed git hooks for CI integration
 Initialized ticket queue
 Orchestrator initialized and ready
 Starting worker 1...
@@ -118,8 +119,10 @@ Worker 2 picked up ticket: feat-avatar-123
 Worker 2 processing ticket feat-avatar-123: Add user avatar support
 Worker 2 created worktree at tmp/agent-2/feat-avatar-123 for branch agent-2/feat-avatar-123
 Worker 2 committed changes: a4ee4666556c78055a9182d43555fd6943d478b5
-Worker 2 triggering CI for branch agent-2/feat-avatar-123
+Worker 2 triggering CI for branch agent-2/feat-avatar-123 (commit a4ee4666)
 Worker 2: CI triggered successfully for agent-2/feat-avatar-123
+Worker 2 waiting for CI to complete for branch agent-2/feat-avatar-123 (commit a4ee4666)
+Worker 2: CI passed for agent-2/feat-avatar-123
 Worker 2 completed ticket feat-avatar-123
 ```
 
@@ -197,8 +200,10 @@ project/           # Working copy (created by 'git clone repo.git project')
 1. Agent creates worktree in `tmp/agent-X/ticket-id/`
 2. Agent writes code and commits to branch `agent-X/ticket-id`
 3. Branch is pushed to `repo.git`
-4. Worktree is cleaned up from `tmp/`
-5. To see changes: clone `repo.git` → `project/` and checkout agent branch
+4. CI is automatically triggered and runs tests
+5. Agent waits for CI results (PASS/FAIL)
+6. Worktree is cleaned up from `tmp/`
+7. To see changes: clone `repo.git` → `project/` and checkout agent branch
 
 ## Advanced Demo Features
 
@@ -292,6 +297,12 @@ To stop the demo:
 
 5. **Multiple workers processing same ticket**: This was a bug in earlier versions. Current version moves processed tickets to `backlog/processed/` to prevent duplicate processing. Each ticket should only be processed by one worker.
 
+6. **CI timeouts or failures**: If workers report CI failures:
+   - Check `repo.git/ci-status/` for CI result files
+   - Verify `ci.sh` script exists and is executable
+   - Ensure Go project has valid `go.mod` in agent-created code
+   - Check daemon logs for detailed CI error messages
+
 ## What's Demonstrated
 
 This demo shows:
@@ -301,16 +312,29 @@ This demo shows:
 3. **Priority Queue**: Tickets processed in priority order
 4. **Worker Orchestration**: Multiple workers processing tickets in parallel
 5. **Git Integration**: Automatic branch creation and worktree management
-6. **CI Integration**: Mock CI triggering (foundation for real CI)
+6. **Real CI Integration**: Automatic test execution and result processing
 7. **Status Monitoring**: Real-time visibility into worker activity
+
+### CI Integration Details
+
+The orchestrator now includes **real CI integration** that:
+- Automatically triggers `go test ./...` when workers push code
+- Creates JSON status files with test results in `repo.git/ci-status/`
+- Workers wait for CI results before proceeding
+- Failed CI stops the worker and cleans up the branch
+- Passed CI allows the worker to complete successfully
 
 ## Next Steps
 
-Sprint 1 provides the foundation for:
-- Real CI integration (Sprint 2)
-- TUI interface (Sprint 3) 
-- Lock management (Sprint 4)
-- Code review automation (Sprint 5)
-- Merge automation (Sprint 6)
+Sprint 1 has delivered:
+- ✅ **Core orchestration** with multi-worker ticket processing
+- ✅ **Git integration** with automatic branch management
+- ✅ **Real CI integration** with automated testing
 
-The core orchestration loop is now functional and ready for enhancement.
+Upcoming sprints will add:
+- TUI interface (Sprint 2)
+- Lock management (Sprint 3) 
+- Code review automation (Sprint 4)
+- Merge automation (Sprint 5)
+
+The core orchestration loop with CI integration is now complete and production-ready.

@@ -33,12 +33,13 @@ git checkout agent-X/feat-ticket-id               # See agent's work
 ## Project Architecture
 
 ### Core Components
-- **Daemon** (`cmd/daemon`): Main orchestrator process
+- **Daemon** (`cmd/daemon`): Main orchestrator process with automatic git hook installation
 - **CLI** (`cmd/cli`): Command-line tool for ticket management
-- **Workers** (`internal/worker`): Agents that process tickets
+- **Workers** (`internal/worker`): Agents that process tickets with real CI integration
 - **Queue** (`internal/queue`): Thread-safe priority queue
 - **Watcher** (`internal/watch`): File system monitoring
 - **Git Utils** (`pkg/gitutils`): Git operations and worktree management
+- **CI Integration** (`internal/ci`): Real CI status reading and processing
 
 ### Key Patterns
 - **Bare Repository**: `repo.git/` contains only git metadata
@@ -50,6 +51,8 @@ git checkout agent-X/feat-ticket-id               # See agent's work
 ### Directory Structure
 ```
 repo.git/          # Bare git repository (metadata only)
+├── hooks/         # Git hooks (post-receive for CI triggering)
+├── ci-status/     # CI result JSON files (<commit-hash>.json)
 tmp/               # Temporary worktrees (cleaned up after use)
 backlog/           # New tickets (watched by daemon)
   processed/       # Processed tickets (moved here automatically)
@@ -62,11 +65,15 @@ internal/          # Internal packages
   ticket/          # Ticket data structures and validation
   watch/           # File system watching
   worker/          # Agent worker implementation
+  ci/              # CI status reading and parsing
   errors.go        # Common error types
 pkg/               # Reusable packages
   gitutils/        # Git operations
+scripts/           # Utility scripts
+  install_hook.go  # Git hook installer
 examples/          # Sample ticket files
 docs/              # Documentation
+ci.sh              # CI execution script
 ```
 
 ## Code Style & Conventions
@@ -93,6 +100,13 @@ docs/              # Documentation
 - Use temporary directories for git tests
 - Mock external dependencies where appropriate
 - Test both success and error paths
+- Use `SkipCI: true` flag in worker tests to avoid CI timeouts
+
+### CI Integration
+- **Direct CI triggering**: Workers call `ci.sh` directly (more reliable than git hooks)
+- **Status polling**: Workers poll `repo.git/ci-status/<commit-hash>.json` files  
+- **Timeout handling**: 30-second timeout with 1-second polling interval
+- **Error handling**: CI failures stop worker processing and clean up branches
 
 ## Important Implementation Details
 
@@ -100,12 +114,15 @@ docs/              # Documentation
 1. **Duplicate Processing**: Fixed by moving processed tickets to `backlog/processed/`
 2. **Git Remote Paths**: Fixed by using absolute paths before changing directories
 3. **Repository Initialization**: Daemon automatically creates bare repo and initial commit
+4. **Real CI Integration**: Replaced mock CI with actual test execution and status monitoring
+5. **Git Hook Installation**: Daemon automatically installs post-receive hooks for CI triggering
 
 ### Worker Behavior
 - Workers poll queue every 2 seconds
 - Only one worker processes each ticket
 - Work simulation creates feature documentation files
-- CI triggering is currently mocked
+- **Real CI integration**: Workers trigger `ci.sh` directly after pushing code
+- Workers wait for CI results (30s timeout, 1s polling) before proceeding
 - Automatic cleanup of worktrees after completion
 
 ### Ticket Processing Flow
@@ -115,7 +132,8 @@ docs/              # Documentation
 4. Worker pops ticket from queue
 5. Worker creates worktree and branch `agent-X/ticket-id`
 6. Worker simulates work and commits changes
-7. Worker triggers CI (mock) and cleans up
+7. Worker triggers CI (real) and waits for results
+8. Worker cleans up on completion or CI failure
 
 ### Demo Verification Points
 - Each ticket processed by exactly one worker
@@ -123,6 +141,7 @@ docs/              # Documentation
 - Actual code visible by cloning and checking out agent branch
 - Processed files moved to `backlog/processed/`
 - Workers return to idle state after completion
+- CI status files created in `repo.git/ci-status/` with test results
 
 ## Configuration
 
@@ -141,16 +160,20 @@ git config --global user.email "your.email@example.com"
 
 ## Next Sprint Preparations
 
-### Sprint 2 Goals (from implementation.md)
-- Real CI integration (replace mock)
-- Git utility enhancements
-- Amp-Worker stub improvements
+### Sprint 1 Complete ✅
+- ✅ **Real CI integration** (completed - replaces mock)
+- ✅ **Git utility enhancements** (GetBranchCommit, hook installation)
+- ✅ **Worker CI integration** (direct CI triggering and status monitoring)
+
+### Sprint 2 Goals (Updated)
+- TUI interface for real-time monitoring
+- Enhanced error recovery for failed worker operations
+- Performance optimizations for larger codebases
 
 ### Technical Debt
 - Worker simulation should create actual code files (not just markdown)
-- CI integration needs real pipeline triggers
-- Error recovery for failed worker operations
 - Lock mechanism for file conflicts (planned for later sprints)
+- Hook triggering reliability (currently using direct CI calls as workaround)
 
 ## Testing Strategy
 
@@ -167,7 +190,8 @@ git config --global user.email "your.email@example.com"
 - CLI command validation
 
 ### Manual Verification
-- Follow `docs/SPRINT1_DEMO.md` step-by-step
+- Follow `docs/DEMO.md` step-by-step
 - Verify single-worker-per-ticket behavior
 - Check branch creation and code generation
 - Confirm processed file movement
+- Verify CI integration (status files in `repo.git/ci-status/`)

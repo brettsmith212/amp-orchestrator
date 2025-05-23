@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -121,19 +122,26 @@ func (w *Worker) processTicket(t *ticket.Ticket) {
 		return
 	}
 	
-	// Wait for CI to complete and check results (unless skipped for testing)
+	// Trigger CI and wait for results (unless skipped for testing)
 	if !w.skipCI {
-	 commitHash, err := w.repo.GetBranchCommit(branchName)
+	commitHash, err := w.repo.GetBranchCommit(branchName)
 	if err != nil {
-	 log.Printf("Worker %d failed to get commit hash for %s: %v", w.ID, t.ID, err)
-	 w.cleanup()
-	  return
-		}
+	log.Printf("Worker %d failed to get commit hash for %s: %v", w.ID, t.ID, err)
+	w.cleanup()
+	return
+	}
 
-	if err := w.waitForCI(commitHash, branchName); err != nil {
-	 log.Printf("Worker %d CI failed for %s: %v", w.ID, t.ID, err)
-	 w.cleanup()
-	  return
+	// Trigger CI manually since git hooks might not be reliable from worktrees
+	if err := w.triggerCI(branchName, commitHash); err != nil {
+	log.Printf("Worker %d failed to trigger CI for %s: %v", w.ID, t.ID, err)
+	w.cleanup()
+	 return
+	 }
+
+	 if err := w.waitForCI(commitHash, branchName); err != nil {
+			log.Printf("Worker %d CI failed for %s: %v", w.ID, t.ID, err)
+			w.cleanup()
+			return
 		}
 	} else {
 		log.Printf("Worker %d: CI skipped for testing", w.ID)
@@ -192,9 +200,9 @@ func (w *Worker) simulateWork(t *ticket.Ticket) error {
 func (w *Worker) waitForCI(commitHash, branchName string) error {
 	log.Printf("Worker %d waiting for CI to complete for branch %s (commit %s)", w.ID, branchName, commitHash[:8])
 	
-	// Use shorter timeout for testing
-	maxWaitTime := 10 * time.Second
-	pollInterval := 500 * time.Millisecond
+	// Use reasonable timeout and polling interval
+	maxWaitTime := 30 * time.Second
+	pollInterval := 1 * time.Second
 	timeout := time.After(maxWaitTime)
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -228,6 +236,46 @@ func (w *Worker) waitForCI(commitHash, branchName string) error {
 			// CI status not ready yet, continue polling
 		}
 	}
+}
+
+// triggerCI manually triggers the CI script for a branch and commit
+func (w *Worker) triggerCI(branchName, commitHash string) error {
+	log.Printf("Worker %d triggering CI for branch %s (commit %s)", w.ID, branchName, commitHash[:8])
+	
+	// Find the ci.sh script path
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to determine executable path: %w", err)
+	}
+	
+	// Assume ci.sh is in the project root (parent of bin/)
+	projectRoot := filepath.Dir(filepath.Dir(execPath))
+	ciScriptPath := filepath.Join(projectRoot, "ci.sh")
+	
+	// Check if ci.sh exists, if not use the current directory
+	if _, err := os.Stat(ciScriptPath); os.IsNotExist(err) {
+		// Fall back to current working directory
+		ciScriptPath = "ci.sh"
+	}
+	
+	// Get absolute path to repository
+	repoPath, err := filepath.Abs(w.repo.Path)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute repo path: %w", err)
+	}
+	
+	// Run the CI script: ci.sh <repo_path> <ref_name> <commit_hash>
+	refName := "refs/heads/" + branchName
+	cmd := exec.Command(ciScriptPath, repoPath, refName, commitHash)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Worker %d CI script output: %s", w.ID, string(output))
+		return fmt.Errorf("CI script failed: %w", err)
+	}
+	
+	log.Printf("Worker %d: CI triggered successfully for %s", w.ID, branchName)
+	return nil
 }
 
 // cleanup cleans up worker resources

@@ -17,11 +17,18 @@ CI_SCRIPT="%s"
 # Create ci-status directory if it doesn't exist
 mkdir -p "$(git rev-parse --git-dir)/ci-status"
 
+# Log hook activity for debugging
+HOOK_LOG="$(git rev-parse --git-dir)/hook.log"
+echo "$(date): Post-receive hook triggered" >> "$HOOK_LOG"
+
 # Read each ref update from stdin
 while read oldrev newrev refname; do
+  echo "$(date): Processing ref update: $oldrev $newrev $refname" >> "$HOOK_LOG"
+  
   # Only run CI for branch updates
   if [[ $refname == refs/heads/* ]]; then
     branch=$(echo $refname | sed 's|^refs/heads/||')
+    echo "$(date): Running CI for $branch..." >> "$HOOK_LOG"
     echo "Running CI for $branch..."
     
     # Get the repository path
@@ -37,10 +44,16 @@ while read oldrev newrev refname; do
       repo_dir=$(readlink -f "$repo_dir/..")
     fi
     
+    echo "$(date): Running CI script: $CI_SCRIPT $repo_dir $refname $newrev" >> "$HOOK_LOG"
+    
     # Run the CI script
-    "$CI_SCRIPT" "$repo_dir" "$refname" "$newrev"
+    "$CI_SCRIPT" "$repo_dir" "$refname" "$newrev" 2>&1 | while read line; do
+      echo "$(date): CI: $line" >> "$HOOK_LOG"
+    done
   fi
 done
+
+echo "$(date): Post-receive hook completed" >> "$HOOK_LOG"
 `
 
 func main() {
