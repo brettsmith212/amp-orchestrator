@@ -100,7 +100,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
 
 ## 3 · Local CI Integration
 
-- [ ] **Step 3-1: ci.sh status JSON**
+- [x] **Step 3-1: ci.sh status JSON**
 
   - **Files** (3): `ci.sh`, `internal/ci/status.go`, `internal/ci/status_test.go`.
   - **Tests**: run `ci.sh` in temp worktree; file `ci-status/<hash>.json` exists & contains `"status":"PASS"`.
