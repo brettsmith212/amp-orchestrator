@@ -16,8 +16,8 @@ run:
 	go run ./cmd/daemon
 
 lint:
-	# Will be updated when govet is added in step 0-2
-	@echo "Lint check will be implemented in step 0-2"
+	go vet ./...
+	@echo "Lint check completed"
 
 clean:
 	rm -rf $(BIN_DIR)

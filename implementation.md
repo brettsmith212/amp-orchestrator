@@ -81,7 +81,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
 
 ## 2 · Worker Management MVP
 
-- [ ] **Step 2-1: Git utility helpers**
+- [x] **Step 2-1: Git utility helpers**
 
   - **Files** (4): `pkg/gitutils/git.go`, `..._test.go`, `internal/errors.go`, `Makefile` (+ `go vet`).
   - **Tests**: create bare repo in tempdir, `AddWorktree` returns expected path; `CommitFile` pushes commit count = 1.
