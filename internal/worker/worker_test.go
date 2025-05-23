@@ -75,6 +75,7 @@ func TestWorkerCreatesBranch(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      true, // Skip CI for testing
+		SkipAmp:     true, // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	
@@ -193,6 +194,7 @@ func TestWorkerProcessesMultipleTickets(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      true, // Skip CI for testing
+		SkipAmp:     true, // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	
@@ -267,6 +269,7 @@ func TestWorkerStatus(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      true, // Skip CI for testing
+		SkipAmp:     true, // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	
@@ -346,6 +349,7 @@ func TestWorkerCITrigger(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      false, // Test real CI triggering
+		SkipAmp:     true,  // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	
@@ -434,6 +438,7 @@ func TestWorkerWithEmptyQueue(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      true, // Skip CI for testing
+		SkipAmp:     true, // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	
@@ -511,6 +516,7 @@ func TestBranchNaming(t *testing.T) {
 		WorkDir:     filepath.Join(tmpDir, "work"),
 		CIStatusDir: ciStatusDir,
 		SkipCI:      true, // Skip CI for testing
+		SkipAmp:     true, // Skip amp CLI for testing
 	}
 	worker := New(config, q)
 	

@@ -12,8 +12,12 @@ COMMIT_HASH="$3"
 
 echo "Running CI for $REF_NAME ($COMMIT_HASH)"
 
-# Create status directory if it doesn't exist
-STATUS_DIR="$REPO_DIR/ci-status"
+# Store the original working directory
+ORIGINAL_DIR="$(pwd)"
+
+# Create status directory if it doesn't exist  
+# Use the directory relative to where the script is called from
+STATUS_DIR="$ORIGINAL_DIR/ci-status"
 mkdir -p "$STATUS_DIR"
 
 # Create a temporary working directory
@@ -47,16 +51,20 @@ else
   OUTPUT="No tests to run"
 fi
 
-# Create status JSON file
-cat > "$STATUS_DIR/$COMMIT_HASH.json" << EOF
-{
-  "ref": "$REF_NAME",
-  "commit": "$COMMIT_HASH",
-  "status": "$STATUS",
-  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "output": "${OUTPUT//\"/\\\"}"
-}
-EOF
+# Create status JSON file properly escaped
+jq -n \
+  --arg ref "$REF_NAME" \
+  --arg commit "$COMMIT_HASH" \
+  --arg status "$STATUS" \
+  --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+  --arg output "$OUTPUT" \
+  '{
+    ref: $ref,
+    commit: $commit,
+    status: $status,
+    timestamp: $timestamp,
+    output: $output
+  }' > "$STATUS_DIR/$COMMIT_HASH.json"
 
 echo "CI completed with status: $STATUS"
 echo "Status saved to $STATUS_DIR/$COMMIT_HASH.json"
