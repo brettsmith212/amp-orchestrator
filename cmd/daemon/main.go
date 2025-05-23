@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/brettsmith212/amp-orchestrator/internal/config"
+	"github.com/brettsmith212/amp-orchestrator/internal/ipc"
 	"github.com/brettsmith212/amp-orchestrator/internal/queue"
+	"github.com/brettsmith212/amp-orchestrator/internal/ticket"
 	"github.com/brettsmith212/amp-orchestrator/internal/watch"
 	"github.com/brettsmith212/amp-orchestrator/internal/worker"
 	"github.com/brettsmith212/amp-orchestrator/pkg/gitutils"
@@ -74,6 +76,19 @@ func main() {
 	ticketQueue := queue.New()
 	log.Printf("Initialized ticket queue")
 
+	// Initialize IPC server
+	ipcSocketPath := cfg.IPC.SocketPath
+	if ipcSocketPath == "" {
+		ipcSocketPath = "~/.orchestrator.sock"
+	}
+	ipcServer := ipc.NewServer(ipcSocketPath)
+	if err := ipcServer.Start(); err != nil {
+		log.Printf("Warning: Failed to start IPC server: %v", err)
+		ipcServer = nil
+	} else {
+		log.Printf("Started IPC server on %s", ipcSocketPath)
+	}
+
 	// Initialize backlog watcher
 	watcherConfig := watch.Config{
 		BacklogPath:    cfg.Scheduler.BacklogPath,
@@ -83,6 +98,19 @@ func main() {
 	watcher, err := watch.New(watcherConfig, ticketQueue)
 	if err != nil {
 		log.Fatalf("Failed to create backlog watcher: %v", err)
+	}
+
+	// Set up IPC event publishing for watcher
+	if ipcServer != nil {
+		watcher.SetEventPublisher(func(t *ticket.Ticket) {
+			ipcServer.PublishTicketEnqueued(t)
+			// Also publish queue update
+			var nextTicket *ticket.Ticket
+			if ticketQueue.Len() > 0 {
+				nextTicket = ticketQueue.Peek()
+			}
+			ipcServer.PublishQueueUpdated(ticketQueue.Len(), nextTicket)
+		})
 	}
 
 	// Setup graceful shutdown
@@ -112,6 +140,20 @@ func main() {
 		}
 		
 		workers[i] = worker.New(workerConfig, ticketQueue)
+		
+		// Set up IPC event publishing for worker
+		if ipcServer != nil {
+			workers[i].SetEventPublisher(func(eventType string, workerID int, t *ticket.Ticket, message string) {
+				switch eventType {
+				case "started":
+					ipcServer.PublishTicketStarted(t, workerID)
+					ipcServer.PublishWorkerStatus(workerID, "working", t, message)
+				case "completed":
+					ipcServer.PublishTicketComplete(t, workerID)
+					ipcServer.PublishWorkerStatus(workerID, "idle", nil, message)
+				}
+			})
+		}
 		
 		// Start each worker in its own goroutine
 		go func(w *worker.Worker) {
@@ -159,6 +201,13 @@ func main() {
 
 	// Cancel context to stop all goroutines
 	cancel()
+
+	// Stop IPC server
+	if ipcServer != nil {
+		if err := ipcServer.Stop(); err != nil {
+			log.Printf("Error stopping IPC server: %v", err)
+		}
+	}
 
 	// Give components time to shut down gracefully
 	time.Sleep(1 * time.Second)

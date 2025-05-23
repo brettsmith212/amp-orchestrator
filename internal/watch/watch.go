@@ -20,6 +20,7 @@ type Watcher struct {
 	queue       *queue.Queue
 	tickerInterval time.Duration
 	fsWatcher   *fsnotify.Watcher
+	eventPublisher func(*ticket.Ticket) // Optional event publisher
 }
 
 // Config holds watcher configuration
@@ -145,6 +146,11 @@ func (w *Watcher) processTicketFile(filepath string) {
 	w.queue.Push(ticket)
 	log.Printf("Enqueued ticket %s: %s", ticket.ID, ticket.Title)
 
+	// Publish event if publisher is set
+	if w.eventPublisher != nil {
+		w.eventPublisher(ticket)
+	}
+
 	// Move the file to a processed directory to avoid re-processing
 	if err := w.moveToProcessed(filepath); err != nil {
 		log.Printf("Failed to move processed file %s: %v", filepath, err)
@@ -176,6 +182,11 @@ func (w *Watcher) Stop() error {
 // GetQueueStatus returns information about the current queue state
 func (w *Watcher) GetQueueStatus() string {
 	return w.queue.String()
+}
+
+// SetEventPublisher sets the event publisher function
+func (w *Watcher) SetEventPublisher(publisher func(*ticket.Ticket)) {
+	w.eventPublisher = publisher
 }
 
 // moveToProcessed moves a processed ticket file to a processed subdirectory

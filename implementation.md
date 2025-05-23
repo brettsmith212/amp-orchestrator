@@ -117,7 +117,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
 
 ## 4 · Bubble Tea TUI α
 
-- [ ] **Step 4-1: Unix-socket JSON event bus**
+- [x] **Step 4-1: Unix-socket JSON event bus**
 
   - **Files** (4): `internal/ipc/ipc.go`, `..._test.go`, `cmd/daemon/main.go` (publish), `cmd/cli/tui.go` (subscribe).
   - **Tests**: client subscribes; receives ≥1 `QueueEvent` within timeout.

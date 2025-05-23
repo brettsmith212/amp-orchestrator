@@ -43,6 +43,9 @@ func main() {
 		}
 		enqueueTicket(os.Args[2])
 		
+	case "tui":
+		startTUI()
+		
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		printUsage()
@@ -56,6 +59,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  init [name]      Initialize a new orchestrator project\n")
 	fmt.Fprintf(os.Stderr, "  validate <file>  Validate a ticket YAML file\n")
 	fmt.Fprintf(os.Stderr, "  enqueue <file>   Enqueue a ticket by copying it to the backlog directory\n")
+	fmt.Fprintf(os.Stderr, "  tui              Start the text-based user interface\n")
 }
 
 func validateTicket(filePath string) {

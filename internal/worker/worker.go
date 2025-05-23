@@ -28,6 +28,7 @@ type Worker struct {
 	ciStatusReader *ci.StatusReader
 	skipCI         bool
 	skipAmp        bool
+	eventPublisher func(eventType string, workerID int, ticket *ticket.Ticket, message string) // Optional event publisher
 }
 
 // Config holds worker configuration
@@ -96,6 +97,11 @@ func (w *Worker) processTicket(t *ticket.Ticket) {
 	w.currentTask = t
 
 	log.Printf("Worker %d processing ticket %s: %s", w.ID, t.ID, t.Title)
+	
+	// Publish ticket started event
+	if w.eventPublisher != nil {
+		w.eventPublisher("started", w.ID, t, fmt.Sprintf("Started processing ticket %s", t.ID))
+	}
 
 	// Generate branch name
 	branchName := fmt.Sprintf("agent-%d/%s", w.ID, t.ID)
@@ -152,6 +158,11 @@ func (w *Worker) processTicket(t *ticket.Ticket) {
 	}
 
 	log.Printf("Worker %d completed ticket %s", w.ID, t.ID)
+
+	// Publish ticket completed event
+	if w.eventPublisher != nil {
+		w.eventPublisher("completed", w.ID, t, fmt.Sprintf("Completed ticket %s", t.ID))
+	}
 
 	// Mark task as complete
 	w.currentTask = nil
@@ -522,6 +533,11 @@ func (w *Worker) GetStatus() WorkerStatus {
 	}
 
 	return status
+}
+
+// SetEventPublisher sets the event publisher function
+func (w *Worker) SetEventPublisher(publisher func(eventType string, workerID int, ticket *ticket.Ticket, message string)) {
+	w.eventPublisher = publisher
 }
 
 // WorkerStatus represents the current state of a worker
