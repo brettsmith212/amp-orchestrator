@@ -29,6 +29,11 @@ git --git-dir repo.git branch -a                # See agent branches
 git clone repo.git project && cd project        # Clone to see code
 git checkout agent-X/feat-ticket-id             # See AI-generated code
 
+# TUI Testing with VHS (essential for visual verification)
+./bin/orchestrator-daemon &                     # Start daemon
+vhs demo.tape                                    # Record TUI to demo.ascii
+cat demo.ascii                                   # Review TUI appearance
+
 # Legacy process (manual setup)
 cp config.sample.yaml config.yaml
 ./bin/orchestrator validate examples/avatar.yaml
@@ -39,12 +44,13 @@ cp config.sample.yaml config.yaml
 
 ### Core Components
 - **Daemon** (`cmd/daemon`): Main orchestrator process with automatic git hook installation
-- **CLI** (`cmd/cli`): Command-line tool for ticket management
+- **CLI** (`cmd/cli`): Command-line tool for ticket management and TUI interface
 - **Workers** (`internal/worker`): Agents that process tickets with real CI integration
 - **Queue** (`internal/queue`): Thread-safe priority queue
 - **Watcher** (`internal/watch`): File system monitoring
 - **Git Utils** (`pkg/gitutils`): Git operations and worktree management
 - **CI Integration** (`internal/ci`): Real CI status reading and processing
+- **IPC** (`internal/ipc`): Unix socket communication for real-time TUI updates
 
 ### Key Patterns
 - **Bare Repository**: `repo.git/` contains only git metadata
@@ -178,7 +184,7 @@ git config --global user.email "your.email@example.com"
 - ✅ **Init Command** (completed - automatic project setup with `orchestrator init`)
 
 ### Sprint 2 Goals (Updated)
-- TUI interface for real-time monitoring
+- ✅ **TUI interface for real-time monitoring** (completed - Unix socket IPC + Bubble Tea panels)
 - Enhanced error recovery for failed worker operations
 - Performance optimizations for larger codebases
 
@@ -206,3 +212,10 @@ git config --global user.email "your.email@example.com"
 - Check branch creation and code generation
 - Confirm processed file movement
 - Verify CI integration (status files in `repo.git/ci-status/`)
+
+### TUI Testing (VHS)
+- **Always use VHS for TUI testing**: `vhs demo.tape` 
+- **Edit demo.tape as needed** to test different scenarios
+- **Review demo.ascii output** to verify TUI appearance and behavior
+- **Essential for CI environments** where interactive testing isn't possible
+- **Update demo.tape** when adding new TUI features or interactions

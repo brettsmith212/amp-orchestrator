@@ -124,7 +124,7 @@ A single agent can only work serially: it writes code, runs tests, waits, and re
   - **Manual Check**
     - Run daemon, then `nc -U ~/.orchestrator.sock` → raw JSON streams.
 
-- [ ] **Step 4-2: Render Tickets & Agents panels**
+- [x] **Step 4-2: Render Tickets & Agents panels**
 
   - **Files** (3): `cmd/cli/tui.go`, `cmd/cli/tui_model.go`, `cmd/cli/tui_view.go`.
   - **Tests**: none (UI difficult to unit test); instead integration check next.
