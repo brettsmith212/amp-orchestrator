@@ -22,27 +22,38 @@ This creates two binaries:
 - `./bin/orchestrator-daemon` - The main orchestrator daemon
 - `./bin/orchestrator` - CLI tool for managing tickets
 
-### 2. Initialize the Repository
+### 2. Initialize Your Project (NEW! 🎉)
 
-The orchestrator needs a bare git repository to work with:
+**Easy way - One command setup:**
 
 ```bash
-# Create a bare repository (optional - daemon will create if it doesn't exist)
-mkdir -p repo.git
-git init --bare repo.git
-
-# The daemon will automatically create the initial commit when it starts
+./bin/orchestrator init my-project-name
 ```
 
-### 3. Ensure Directories Exist
+This single command will:
+- ✅ Check all prerequisites (Git, Go, jq, Amp CLI)
+- ✅ Create all required directories (backlog, tmp, ci-status, metrics, scripts)
+- ✅ Initialize bare git repository with initial commit
+- ✅ Copy/create configuration files
+- ✅ Set up CI scripts
+- ✅ Create a sample ticket to get you started
+- ✅ Show you exactly what to do next
+
+**Manual way (if you prefer):**
 
 ```bash
 # Create required directories  
 mkdir -p backlog tmp ci-status metrics scripts
 # Note: A 'backlog/processed/' directory will be created automatically
 
-# Copy the scripts directory for git hooks (optional)
+# Initialize bare repository
+mkdir -p repo.git
+git init --bare repo.git
+
+# Copy configuration and scripts
+cp config.sample.yaml config.yaml
 cp -r scripts/ ./
+cp ci.sh ./
 ```
 
 ## Demo Flow
@@ -79,20 +90,23 @@ Started backlog watcher on ./backlog
 
 ### Step 2: Validate a Ticket
 
-In terminal 2, validate the example ticket:
+In terminal 2, validate a ticket (use the generated sample or examples/avatar.yaml):
 
 ```bash
+# If you used init command:
+./bin/orchestrator validate sample-ticket.yaml
+
+# Or use the example ticket:
 ./bin/orchestrator validate examples/avatar.yaml
 ```
 
 Expected output:
 ```
 ✅ Ticket validation passed
-   ID: feat-avatar-123
-   Title: Add user avatar support
-   Priority: 2
-   Locks: [user-profile upload-system image-processing]
-   Dependencies: [feat-user-auth-100 feat-file-storage-101]
+   ID: feat-hello-world-001  (or feat-avatar-123)
+   Title: Create Hello World application  (or Add user avatar support)
+   Priority: 1  (or 2)
+   Locks: [hello-world]  (or [user-profile upload-system image-processing])
 ```
 
 ### Step 3: Enqueue the Ticket
@@ -100,15 +114,19 @@ Expected output:
 Enqueue the ticket for processing:
 
 ```bash
+# If you used init command:
+./bin/orchestrator enqueue sample-ticket.yaml
+
+# Or use the example ticket:
 ./bin/orchestrator enqueue examples/avatar.yaml
 ```
 
 Expected output:
 ```
-✅ Enqueued ticket feat-avatar-123
-   File: backlog/avatar.yaml
-   Title: Add user avatar support
-   Priority: 2
+✅ Enqueued ticket feat-hello-world-001
+   File: backlog/sample-ticket.yaml
+   Title: Create Hello World application
+   Priority: 1
 ```
 
 ### Step 4: Watch Processing
