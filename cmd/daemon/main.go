@@ -137,10 +137,12 @@ func main() {
 			RepoPath:    cfg.Repository.Path,
 			WorkDir:     cfg.Repository.Workdir,
 			CIStatusDir: cfg.CI.StatusPath,
+			SkipCI:      cfg.Testing.SkipCI,
+			SkipAmp:     cfg.Testing.SkipAmp,
 		}
-		
+
 		workers[i] = worker.New(workerConfig, ticketQueue)
-		
+
 		// Set up IPC event publishing for worker
 		if ipcServer != nil {
 			workers[i].SetEventPublisher(func(eventType string, workerID int, t *ticket.Ticket, message string) {
@@ -154,7 +156,7 @@ func main() {
 				}
 			})
 		}
-		
+
 		// Start each worker in its own goroutine
 		go func(w *worker.Worker) {
 			log.Printf("Starting worker %d...", w.GetStatus().ID)
@@ -168,7 +170,7 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -178,12 +180,12 @@ func main() {
 				if ticketQueue.Len() > 0 {
 					log.Printf("Next ticket: %s", ticketQueue.Peek().ID)
 				}
-				
+
 				// Log worker status
 				for _, w := range workers {
 					status := w.GetStatus()
 					if status.CurrentTicket != nil {
-						log.Printf("Worker %d: processing %s (%s)", 
+						log.Printf("Worker %d: processing %s (%s)",
 							status.ID, status.CurrentTicket.ID, status.CurrentTicket.Title)
 					} else {
 						log.Printf("Worker %d: idle", status.ID)
@@ -221,27 +223,27 @@ func installGitHooks(repoPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to determine executable path: %w", err)
 	}
-	
+
 	// Assume ci.sh is in the project root (parent of bin/)
 	projectRoot := filepath.Dir(filepath.Dir(execPath))
 	ciScriptPath := filepath.Join(projectRoot, "ci.sh")
-	
+
 	// Check if ci.sh exists, if not use the current directory
 	if _, err := os.Stat(ciScriptPath); os.IsNotExist(err) {
 		// Fall back to current working directory
 		ciScriptPath = "ci.sh"
 	}
-	
+
 	// Run the hook installer
-	cmd := exec.Command("go", "run", 
+	cmd := exec.Command("go", "run",
 		filepath.Join(projectRoot, "scripts", "install_hook.go"),
 		"--repo", repoPath,
 		"--ci-script", ciScriptPath)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("hook installation failed: %w: %s", err, output)
 	}
-	
+
 	return nil
 }

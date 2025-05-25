@@ -18,6 +18,7 @@ type Config struct {
 	CI         CIConfig         `mapstructure:"ci"`
 	IPC        IPCConfig        `mapstructure:"ipc"`
 	Metrics    MetricsConfig    `mapstructure:"metrics"`
+	Testing    TestingConfig    `mapstructure:"testing"`
 }
 
 // RepositoryConfig holds git repository settings
@@ -54,6 +55,12 @@ type IPCConfig struct {
 type MetricsConfig struct {
 	Enabled    bool   `mapstructure:"enabled"`
 	OutputPath string `mapstructure:"output_path"`
+}
+
+// TestingConfig holds testing mode settings
+type TestingConfig struct {
+	SkipAmp bool `mapstructure:"skip_amp"`
+	SkipCI  bool `mapstructure:"skip_ci"`
 }
 
 // Load loads the configuration from file
@@ -134,6 +141,10 @@ func setDefaults(v *viper.Viper) {
 	// Metrics defaults
 	v.SetDefault("metrics.enabled", true)
 	v.SetDefault("metrics.output_path", "./metrics")
+
+	// Testing defaults
+	v.SetDefault("testing.skip_amp", false)
+	v.SetDefault("testing.skip_ci", false)
 }
 
 // validateConfig validates the loaded configuration

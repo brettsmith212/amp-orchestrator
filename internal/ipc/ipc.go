@@ -35,7 +35,7 @@ type Event struct {
 
 // QueueEvent represents queue-related events
 type QueueEvent struct {
-	QueueLength int `json:"queue_length"`
+	QueueLength int            `json:"queue_length"`
 	NextTicket  *ticket.Ticket `json:"next_ticket,omitempty"`
 }
 
@@ -258,7 +258,7 @@ func (s *Server) handleClient(conn net.Conn) {
 		default:
 			// Set a read deadline to periodically check if context is cancelled
 			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-			
+
 			// Try to read from connection (clients might send keepalive)
 			buf := make([]byte, 1024)
 			_, err := conn.Read(buf)
@@ -313,7 +313,7 @@ func (c *Client) Connect() error {
 	}
 
 	c.conn = conn
-	
+
 	// Start reading events in a goroutine
 	go c.readEvents()
 
@@ -331,12 +331,12 @@ func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
 		c.cancel()
 		close(c.events)
-		
+
 		if c.conn != nil {
 			err = c.conn.Close()
 		}
 	})
-	
+
 	return err
 }
 
@@ -345,7 +345,7 @@ func (c *Client) readEvents() {
 	defer c.Close()
 
 	decoder := json.NewDecoder(c.conn)
-	
+
 	for {
 		select {
 		case <-c.ctx.Done():

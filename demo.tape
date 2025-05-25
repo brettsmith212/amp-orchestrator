@@ -55,13 +55,13 @@
 #   Hide                            Hide the subsequent commands from the output
 #   Show                            Show the subsequent commands in the output
 
-# demo.tape
-Output demo.ascii   # or demo.txt
-Set Framerate 1     # capture 1 frame per second to keep the file small
+# demo.tape - Test TUI completion events
+Output demo.ascii   
+Set Framerate 2     # capture 2 frames per second 
 Set Height 120
 Set Width 120
 
-Type "cd test-tui-demo && ../bin/orchestrator tui"
+Type "cd test-demo-tui && ./orchestrator tui"
 Enter
-Sleep 1 s
+Sleep 15s   # Wait long enough to see ticket completion
 
