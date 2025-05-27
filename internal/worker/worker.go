@@ -68,6 +68,11 @@ func (w *Worker) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to create worker directory: %w", err)
 	}
 
+	// Send initial status event
+	if w.eventPublisher != nil {
+		w.eventPublisher("started", w.ID, nil, "Worker ready")
+	}
+
 	// Main worker loop
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()

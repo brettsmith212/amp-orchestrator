@@ -6,6 +6,8 @@ A lightweight, locally-hosted orchestrator that coordinates 3-5 Sourcegraph Amp 
 
 This project aims to enable parallelism and peer review in AI coding agents, replicating advantages of human engineering teams while controlling merge conflicts and ensuring tests remain green.
 
+![Amp Orchestrator Real-time Status](images/amp-orchestrator-1.png)
+
 ## Getting Started
 
 ### Prerequisites
@@ -18,6 +20,7 @@ This project aims to enable parallelism and peer review in AI coding agents, rep
 ### Quick Start
 
 1. **Build the orchestrator:**
+
    ```bash
    git clone https://github.com/brettsmith212/amp-orchestrator.git
    cd amp-orchestrator
@@ -25,18 +28,21 @@ This project aims to enable parallelism and peer review in AI coding agents, rep
    ```
 
 2. **Initialize a new project:**
+
    ```bash
    ./bin/orchestrator init my-ai-project
    cd my-ai-project
    cp ../bin/* .  # Copy orchestrator binaries
    ```
 
-3. **Start the daemon:**
+3. **Start the daemon (in separate terminal):**
+
    ```bash
-   ./orchestrator-daemon &
+   ./orchestrator-daemon
    ```
 
 4. **Enqueue a ticket:**
+
    ```bash
    ./orchestrator validate sample-ticket.yaml
    ./orchestrator enqueue sample-ticket.yaml
@@ -45,18 +51,19 @@ This project aims to enable parallelism and peer review in AI coding agents, rep
 5. **Watch the magic happen!** Agents will generate code automatically.
 
 6. **See the generated code:**
+
    ```bash
    # See what agents created
    git --git-dir repo.git branch -a
-   
+
    # Clone to see the code
    git clone repo.git project
    cd project
-   
+
    # Check out agent's branch
    git branch -a  # See all branches including remotes
    git checkout agent-1/feat-hello-world-001  # Switch to agent's work
-   
+
    # Explore the generated code
    ls -la
    cat main.go
@@ -92,6 +99,7 @@ tags:
 ```
 
 Then enqueue it:
+
 ```bash
 ./orchestrator validate my-ticket.yaml
 ./orchestrator enqueue my-ticket.yaml
@@ -104,12 +112,13 @@ Then enqueue it:
 Real examples of what agents have built:
 
 - **Calculator CLI**: Complete arithmetic operations with error handling
-- **Word Counter**: File processing tool with line/word/character counting  
+- **Word Counter**: File processing tool with line/word/character counting
 - **Echo App**: Simple but robust CLI with usage instructions
 - **HTTP Server**: Basic web server with routing and middleware
 - **Database CRUD**: Full CRUD operations with SQLite integration
 
 Each includes:
+
 - ✅ Complete, compilable source code
 - ✅ Proper Go modules and dependencies
 - ✅ Comprehensive documentation
@@ -122,7 +131,10 @@ Each includes:
 # See all commands
 ./orchestrator --help
 
-# Monitor worker activity
+# Real-time TUI monitoring (Sprint 2 ✅)
+./orchestrator tui
+
+# Monitor worker activity in logs
 tail -f daemon.log
 
 # Priority tickets (1 = highest priority)
@@ -132,11 +144,6 @@ priority: 1  # Will be processed first
 locks:
   - "user-auth"    # This ticket locks user auth system
   - "database"     # And database layer
-
-# Dependencies (must be completed first)  
-dependencies:
-  - "feat-user-auth-100"
-  - "feat-database-setup-101"
 ```
 
 ## Development
@@ -155,17 +162,18 @@ make lint
 🎫 Ticket (YAML) → 📁 Backlog → 🤖 Agent → 🧠 Amp CLI → 💻 Generated Code → 🧪 CI → ✅ Ready
 ```
 
-- **Ticket Queue**: Priority-based processing with dependency management
-- **Worker Agents**: 3 agents by default, process tickets in parallel  
+- **Ticket Queue**: Priority-based processing with file watching
+- **Worker Agents**: 3 agents by default, process tickets in parallel
 - **Git Worktrees**: Isolated workspaces prevent merge conflicts
 - **Amp CLI Integration**: Real AI code generation from ticket descriptions
 - **CI Pipeline**: Automated testing ensures code quality
-- **Branch Management**: Each ticket gets its own branch for review
+- **Branch Management**: Each ticket gets its own branch (`agent-X/ticket-id`)
+- **Real-time TUI**: Monitor agent status and activity with `./orchestrator tui`
 
 ## Documentation
 
 - **[📖 Full Demo Guide](docs/DEMO.md)** - Complete walkthrough with examples
-- **[🎯 Implementation Details](implementation.md)** - Technical architecture  
+- **[🎯 Implementation Details](implementation.md)** - Technical architecture
 - **[📋 Agent Memory](AGENT.md)** - Development guidelines and patterns
 
 ## Project Structure
@@ -174,10 +182,11 @@ make lint
 .
 ├── cmd/                    # Command-line applications
 │   ├── daemon/            # Main orchestrator daemon
-│   └── cli/               # CLI interface (init, validate, enqueue)
+│   └── cli/               # CLI interface (init, validate, enqueue, tui)
 ├── internal/              # Private application code
 │   ├── ci/               # CI status integration
 │   ├── config/           # Configuration management
+│   ├── ipc/              # Unix socket communication for TUI
 │   ├── queue/            # Priority ticket queue
 │   ├── ticket/           # Ticket validation & parsing
 │   ├── watch/            # File system watching
@@ -185,7 +194,6 @@ make lint
 ├── pkg/                   # Public libraries
 │   └── gitutils/         # Git operations & worktree management
 ├── scripts/               # Helper scripts
-│   └── install_hook.go   # Git hook installation
 ├── docs/                  # Documentation
 │   └── DEMO.md           # Complete walkthrough
 ├── examples/              # Sample tickets

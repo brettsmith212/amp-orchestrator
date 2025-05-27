@@ -5,6 +5,7 @@ This file contains important project information for future development sessions
 ## Frequently Used Commands
 
 ### Build & Test
+
 ```bash
 make build        # Builds both orchestrator-daemon and orchestrator CLI
 make test         # Runs all tests
@@ -18,21 +19,27 @@ go test ./pkg/gitutils -run TestAddWorktree  # Run specific test
 ```
 
 ### Demo & Manual Testing
+
 ```bash
 # Full Demo Process with AI Integration
 make build
 ./bin/orchestrator init my-project              # Initialize new project
 cd my-project
-./bin/orchestrator-daemon &                     # Start daemon
-./bin/orchestrator enqueue examples/hello-world.yaml  # Enqueue ticket
-git --git-dir repo.git branch -a                # See agent branches
-git clone repo.git project && cd project        # Clone to see code
-git checkout agent-X/feat-ticket-id             # See AI-generated code
+cp ../bin/* .                                   # Copy binaries to project
+# NOTE: Do NOT use & with daemon - it hangs indefinitely
+# Start daemon in separate terminal or use nohup
+./orchestrator-daemon                           # Start daemon (blocks - use separate terminal)
 
 # TUI Testing with VHS (essential for visual verification)
-./bin/orchestrator-daemon &                     # Start daemon
-vhs demo.tape                                    # Record TUI to demo.ascii
-cat demo.ascii                                   # Review TUI appearance
+# In separate terminal:
+cd my-project
+vhs ../demo.tape                                # Record TUI to demo.ascii
+./orchestrator enqueue sample-ticket.yaml      # Enqueue ticket
+git --git-dir repo.git branch -a               # See agent branches
+git clone repo.git project && cd project       # Clone to see code
+git checkout agent-X/feat-ticket-id            # See AI-generated code
+cat ../demo.ascii                              # Review TUI appearance
+
 
 # Legacy process (manual setup)
 cp config.sample.yaml config.yaml
@@ -43,6 +50,7 @@ cp config.sample.yaml config.yaml
 ## Project Architecture
 
 ### Core Components
+
 - **Daemon** (`cmd/daemon`): Main orchestrator process with automatic git hook installation
 - **CLI** (`cmd/cli`): Command-line tool for ticket management and TUI interface
 - **Workers** (`internal/worker`): Agents that process tickets with real CI integration
@@ -53,6 +61,7 @@ cp config.sample.yaml config.yaml
 - **IPC** (`internal/ipc`): Unix socket communication for real-time TUI updates
 
 ### Key Patterns
+
 - **Bare Repository**: `repo.git/` contains only git metadata
 - **Worktrees**: Temporary isolated workspaces in `tmp/agent-X/ticket-id/`
 - **Processed Files**: Tickets moved to `backlog/processed/` to prevent duplicates
@@ -60,6 +69,7 @@ cp config.sample.yaml config.yaml
 - **Priority Queue**: Lower numbers = higher priority, FIFO within same priority
 
 ### Directory Structure
+
 ```
 repo.git/          # Bare git repository (metadata only)
 ├── hooks/         # Git hooks (post-receive for CI triggering)
@@ -90,23 +100,27 @@ ci.sh              # CI execution script
 ## Code Style & Conventions
 
 ### Error Handling
+
 - Use `internal/errors.go` for git-related errors
 - Wrap errors with `internal.NewGitError(operation, path, err)`
 - Always provide context in error messages
 
 ### Git Operations
+
 - **Always use absolute paths** for git remotes (worktrees resolve paths differently)
 - Create worktrees for isolated agent work
 - Push to origin after commits to ensure persistence
 - Clean up worktrees when work is complete
 
 ### Concurrency
+
 - All queue operations are thread-safe
 - Workers run in separate goroutines
 - Use context for graceful shutdown
 - Protect shared state with mutexes
 
 ### Testing
+
 - Comprehensive test coverage for all packages
 - Use temporary directories for git tests
 - Mock external dependencies where appropriate
@@ -115,14 +129,16 @@ ci.sh              # CI execution script
 - Use `SkipAmp: true` flag in worker tests to avoid hanging on amp CLI calls
 
 ### CI Integration
+
 - **Direct CI triggering**: Workers call `ci.sh` directly (more reliable than git hooks)
-- **Status polling**: Workers poll `repo.git/ci-status/<commit-hash>.json` files  
+- **Status polling**: Workers poll `repo.git/ci-status/<commit-hash>.json` files
 - **Timeout handling**: 30-second timeout with 1-second polling interval
 - **Error handling**: CI failures stop worker processing and clean up branches
 
 ## Important Implementation Details
 
 ### Sprint 1 Fixes Applied
+
 1. **Duplicate Processing**: Fixed by moving processed tickets to `backlog/processed/`
 2. **Git Remote Paths**: Fixed by using absolute paths before changing directories
 3. **Repository Initialization**: Daemon automatically creates bare repo and initial commit
@@ -130,6 +146,7 @@ ci.sh              # CI execution script
 5. **Git Hook Installation**: Daemon automatically installs post-receive hooks for CI triggering
 
 ### Worker Behavior
+
 - Workers poll queue every 2 seconds
 - Only one worker processes each ticket
 - **Real AI Integration**: Workers use Amp CLI to generate actual functional applications
@@ -138,6 +155,7 @@ ci.sh              # CI execution script
 - Automatic cleanup of worktrees after completion
 
 ### Ticket Processing Flow
+
 1. File added to `backlog/` directory
 2. Watcher detects file and loads ticket
 3. Ticket enqueued and file moved to `backlog/processed/`
@@ -148,6 +166,7 @@ ci.sh              # CI execution script
 8. Worker cleans up on completion or CI failure
 
 ### Demo Verification Points
+
 - Each ticket processed by exactly one worker
 - Branches visible with `git --git-dir repo.git branch -a`
 - Actual code visible by cloning and checking out agent branch
@@ -158,6 +177,7 @@ ci.sh              # CI execution script
 ## Configuration
 
 ### Default Settings
+
 - 3 agents by default (configurable in config.yaml)
 - 5-second poll interval for file watching
 - 30-second status reporting interval
@@ -165,18 +185,21 @@ ci.sh              # CI execution script
 - Backlog: `./backlog`, CI status: `./ci-status`
 
 ### Required Git Configuration
+
 ```bash
 git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 ```
 
 ### Prerequisites
+
 - **Amp CLI**: Required for AI code generation (`amp --help` should work)
 - **API Key**: Amp CLI must be configured with valid API credentials
 
 ## Next Sprint Preparations
 
 ### Sprint 1 Complete ✅
+
 - ✅ **Real CI integration** (completed - replaces mock)
 - ✅ **Git utility enhancements** (GetBranchCommit, hook installation)
 - ✅ **Worker CI integration** (direct CI triggering and status monitoring)
@@ -184,29 +207,34 @@ git config --global user.email "your.email@example.com"
 - ✅ **Init Command** (completed - automatic project setup with `orchestrator init`)
 
 ### Sprint 2 Goals (Updated)
+
 - ✅ **TUI interface for real-time monitoring** (completed - Unix socket IPC + Bubble Tea panels)
 - Enhanced error recovery for failed worker operations
 - Performance optimizations for larger codebases
 
 ### Technical Debt
+
 - Lock mechanism for file conflicts (planned for later sprints)
 - Hook triggering reliability (currently using direct CI calls as workaround)
 
 ## Testing Strategy
 
 ### Unit Tests
+
 - All internal packages have comprehensive test coverage
 - Git operations tested with temporary repositories
 - Queue operations tested for thread safety
 - Ticket validation tested for all edge cases
 
 ### Integration Tests
+
 - End-to-end worker processing
 - File watcher event handling
 - Git worktree lifecycle
 - CLI command validation
 
 ### Manual Verification
+
 - Follow `docs/DEMO.md` step-by-step
 - Verify single-worker-per-ticket behavior
 - Check branch creation and code generation
@@ -214,7 +242,8 @@ git config --global user.email "your.email@example.com"
 - Verify CI integration (status files in `repo.git/ci-status/`)
 
 ### TUI Testing (VHS)
-- **Always use VHS for TUI testing**: `vhs demo.tape` 
+
+- **Always use VHS for TUI testing**: `vhs demo.tape`
 - **Edit demo.tape as needed** to test different scenarios
 - **Review demo.ascii output** to verify TUI appearance and behavior
 - **Essential for CI environments** where interactive testing isn't possible

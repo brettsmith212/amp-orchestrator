@@ -148,12 +148,18 @@ func main() {
 			workers[i].SetEventPublisher(func(eventType string, workerID int, t *ticket.Ticket, message string) {
 				switch eventType {
 				case "started":
-					ipcServer.PublishTicketStarted(t, workerID)
-					ipcServer.PublishWorkerStatus(workerID, "working", t, message)
-				case "completed":
-					ipcServer.PublishTicketComplete(t, workerID)
+				if t != nil {
+				 // Worker started processing a ticket
+				  ipcServer.PublishTicketStarted(t, workerID)
+				 ipcServer.PublishWorkerStatus(workerID, "working", t, message)
+				} else {
+				  // Worker just started and is ready (idle)
 					ipcServer.PublishWorkerStatus(workerID, "idle", nil, message)
 				}
+			case "completed":
+				ipcServer.PublishTicketComplete(t, workerID)
+				ipcServer.PublishWorkerStatus(workerID, "idle", nil, message)
+			}
 			})
 		}
 
